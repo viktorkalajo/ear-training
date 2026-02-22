@@ -110,7 +110,7 @@ export default function App() {
     setShowAnswer(false);
     setGameState("playing");
     setIsPlaying(true);
-    await playSequence(seq.notes);
+    await playSequence(seq!.notes);
     setIsPlaying(false);
     setGameState("answering");
   }, [sequences]);
@@ -156,7 +156,7 @@ export default function App() {
     setGameState("answering");
   }, [current, isPlaying]);
 
-  const keyHandlerRef = useRef<(e: KeyboardEvent) => void>();
+  const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(undefined);
   keyHandlerRef.current = (e: KeyboardEvent) => {
     if (gameState === "idle" && !isLoading && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
