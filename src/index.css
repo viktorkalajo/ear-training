@@ -5,10 +5,10 @@
 }
 
 :root {
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: "Georgia", "Times New Roman", serif;
   line-height: 1.5;
-  color: #1a1a2e;
-  background-color: #f5f5f7;
+  color: #f0ece4;
+  background: #1a1a1a;
 }
 
 body {
@@ -16,6 +16,9 @@ body {
   display: flex;
   justify-content: center;
   padding: 2rem 1rem;
+  background:
+    radial-gradient(ellipse at 50% 0%, #2a2220 0%, transparent 60%),
+    linear-gradient(180deg, #111 0%, #1a1714 100%);
 }
 
 #root {
@@ -32,15 +35,18 @@ body {
 
 h1 {
   font-size: 1.6rem;
-  font-weight: 700;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: #c9a84c;
+  text-transform: uppercase;
   margin-bottom: 0.5rem;
 }
 
 /* Answer display */
 .answer-display {
-  background: #fff;
-  border: 2px solid #e0e0e0;
-  border-radius: 12px;
+  background: linear-gradient(180deg, #fffef7 0%, #f5f0e0 100%);
+  border: 1px solid #c9a84c55;
+  border-radius: 6px;
   padding: 1rem 1.5rem;
   width: 100%;
   text-align: center;
@@ -49,21 +55,24 @@ h1 {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .answer-label {
   font-size: 0.85rem;
-  color: #888;
+  color: #6b5f4d;
 }
 
 .answer-degrees {
   font-size: 1.4rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.05em;
+  color: #2a2018;
+  font-family: system-ui, sans-serif;
 }
 
 .placeholder {
-  color: #ccc;
+  color: #c5bba8;
 }
 
 /* Degree buttons */
@@ -77,30 +86,36 @@ h1 {
 .btn-degree {
   width: 3.2rem;
   height: 3.2rem;
-  border-radius: 50%;
-  border: 2px solid #4a6fa5;
-  background: #fff;
-  color: #4a6fa5;
+  border-radius: 4px;
+  border: 1px solid #c9a84c88;
+  background: linear-gradient(180deg, #fffef7 0%, #f0e8d0 100%);
+  color: #2a2018;
   font-size: 1.2rem;
   font-weight: 700;
+  font-family: system-ui, sans-serif;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.12s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 .btn-degree:hover:not(:disabled) {
-  background: #4a6fa5;
+  background: linear-gradient(180deg, #c9a84c 0%, #a8882e 100%);
   color: #fff;
+  border-color: #c9a84c;
 }
 
 .btn-degree:active:not(:disabled) {
-  transform: scale(0.93);
+  transform: scale(0.95);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
 .btn-degree:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
@@ -114,37 +129,42 @@ h1 {
 
 /* Buttons */
 button {
-  font-family: inherit;
+  font-family: "Georgia", "Times New Roman", serif;
   cursor: pointer;
   border: none;
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 0.6rem 1.4rem;
   font-size: 0.95rem;
   font-weight: 600;
   transition: all 0.15s ease;
+  letter-spacing: 0.02em;
 }
 
 button:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
 .btn-primary {
-  background: #4a6fa5;
-  color: #fff;
+  background: linear-gradient(180deg, #c9a84c 0%, #a8882e 100%);
+  color: #1a1410;
+  border: 1px solid #c9a84c;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #3a5a8a;
+  background: linear-gradient(180deg, #d4b558 0%, #b89838 100%);
 }
 
 .btn-secondary {
-  background: #e8ecf1;
-  color: #4a6fa5;
+  background: #2a2520;
+  color: #c9a84c;
+  border: 1px solid #c9a84c44;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #d0d8e4;
+  background: #3a332a;
+  border-color: #c9a84c88;
 }
 
 /* Result section */
@@ -161,11 +181,11 @@ button:disabled {
 }
 
 .result-text.correct {
-  color: #2e7d32;
+  color: #7cb87a;
 }
 
 .result-text.wrong {
-  color: #c62828;
+  color: #e08878;
 }
 
 .result-actions {
@@ -176,33 +196,39 @@ button:disabled {
 .revealed-answer {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #4a6fa5;
-  background: #e8ecf1;
+  color: #c9a84c;
+  background: #2a2520;
   padding: 0.5rem 1rem;
-  border-radius: 8px;
+  border-radius: 4px;
+  border: 1px solid #c9a84c44;
+  font-family: system-ui, sans-serif;
 }
 
 /* Empty state */
 .message-box {
-  background: #fff;
-  border-radius: 12px;
+  background: #2a2520;
+  border: 1px solid #c9a84c33;
+  border-radius: 6px;
   padding: 1.5rem;
   text-align: center;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
 .example-url {
   display: block;
-  background: #e8ecf1;
+  background: #1a1714;
   padding: 0.75rem;
-  border-radius: 8px;
+  border-radius: 4px;
   font-size: 0.85rem;
   word-break: break-all;
+  color: #c9a84c;
+  font-family: monospace;
 }
 
 .hint {
   font-size: 0.85rem;
-  color: #888;
+  color: #a89b88;
 }
