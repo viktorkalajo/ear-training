@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Ear Training App (Gehörsträning)
 
 Piano ear training web app for recognizing note sequences. Built for a piano teacher to use with students.
