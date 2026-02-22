@@ -232,3 +232,25 @@ button:disabled {
   font-size: 0.9rem;
   color: #a89b88;
 }
+
+button kbd {
+  display: inline-block;
+  font-family: system-ui, sans-serif;
+  font-size: 0.65rem;
+  font-weight: 400;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  vertical-align: middle;
+  opacity: 0.55;
+}
+
+.btn-primary kbd {
+  background: rgba(0, 0, 0, 0.15);
+  color: #1a1410;
+}
+
+.btn-secondary kbd {
+  background: rgba(255, 255, 255, 0.08);
+  color: #d4c4a6;
+}

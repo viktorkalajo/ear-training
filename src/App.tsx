@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { playSequence, loadAudio } from "./audio";
 import type { Sequence, GameState } from "./types";
 
@@ -63,8 +63,10 @@ function parseSequences(param: string): Sequence[] {
     .filter((seq) => seq.notes.length > 0 && seq.degrees.every((d) => d > 0));
 }
 
-function pickRandom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+function pickRandom<T>(arr: T[], exclude?: T): T {
+  if (arr.length <= 1) return arr[0];
+  const filtered = arr.filter((item) => item !== exclude);
+  return filtered[Math.floor(Math.random() * filtered.length)];
 }
 
 export default function App() {
@@ -76,6 +78,13 @@ export default function App() {
   const [showAnswer, setShowAnswer] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasKeyboard, setHasKeyboard] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = () => { setHasKeyboard(true); window.removeEventListener("keydown", onKeyDown); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -87,7 +96,7 @@ export default function App() {
 
   const startRound = useCallback(async () => {
     if (sequences.length === 0) return;
-    const seq = pickRandom(sequences);
+    const seq = pickRandom(sequences, current);
     setCurrent(seq);
     setUserAnswer([]);
     setIsCorrect(null);
@@ -129,21 +138,51 @@ export default function App() {
     setShowAnswer(true);
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (gameState === "answering") {
-        const digit = parseInt(e.key);
-        if (digit >= 1 && digit <= 7) {
-          addDegree(digit);
-        } else if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          submit();
-        }
+  const tryAgain = useCallback(async () => {
+    if (!current || isPlaying) return;
+    setUserAnswer([]);
+    setIsCorrect(null);
+    setGameState("playing");
+    setIsPlaying(true);
+    await playSequence(current.notes);
+    setIsPlaying(false);
+    setGameState("answering");
+  }, [current, isPlaying]);
+
+  const keyHandlerRef = useRef<(e: KeyboardEvent) => void>();
+  keyHandlerRef.current = (e: KeyboardEvent) => {
+    if (gameState === "answering") {
+      const digit = parseInt(e.key);
+      if (digit >= 1 && digit <= 7) {
+        addDegree(digit);
+      } else if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        submit();
+      } else if (e.key === "Backspace") {
+        removeLast();
+      } else if (e.key === "r" || e.key === "R") {
+        replay();
       }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gameState]);
+    } else if (gameState === "result") {
+      if ((e.key === "Enter" || e.key === " ") && (isCorrect || showAnswer)) {
+        e.preventDefault();
+        startRound();
+      } else if ((e.key === "Enter" || e.key === " ") && !isCorrect && !showAnswer) {
+        e.preventDefault();
+        tryAgain();
+      } else if ((e.key === "s" || e.key === "S") && !isCorrect && !showAnswer) {
+        revealAnswer();
+      } else if (e.key === "r" || e.key === "R") {
+        replay();
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => keyHandlerRef.current?.(e);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   if (sequences.length === 0) {
     return (
@@ -206,14 +245,19 @@ export default function App() {
               onClick={removeLast}
               disabled={gameState !== "answering" || userAnswer.length === 0}
             >
-              Ångra
+              Ångra{hasKeyboard && <kbd>⌫</kbd>}
             </button>
             <button
               className="btn-secondary"
-              onClick={replay}
+              onClick={gameState === "result" && !isCorrect && !showAnswer ? tryAgain : replay}
               disabled={isPlaying}
             >
-              {isPlaying ? "Spelar..." : "Spela igen"}
+              {isPlaying ? "Spelar..." : <>
+                {gameState === "result" && !isCorrect && !showAnswer ? "Försök igen" : "Spela igen"}
+                {hasKeyboard && (gameState === "result" && !isCorrect && !showAnswer
+                  ? <><kbd>↵</kbd><kbd>R</kbd></>
+                  : <kbd>R</kbd>)}
+              </>}
             </button>
             {gameState === "answering" && (
               <button
@@ -221,7 +265,7 @@ export default function App() {
                 onClick={submit}
                 disabled={userAnswer.length === 0}
               >
-                Kolla
+                Kolla{hasKeyboard && <kbd>↵</kbd>}
               </button>
             )}
           </div>
@@ -233,21 +277,9 @@ export default function App() {
               </p>
 
               {!isCorrect && !showAnswer && (
-                <div className="result-actions">
-                  <button
-                    className="btn-secondary"
-                    onClick={() => {
-                      setUserAnswer([]);
-                      setGameState("answering");
-                      setIsCorrect(null);
-                    }}
-                  >
-                    Försök igen
-                  </button>
-                  <button className="btn-secondary" onClick={revealAnswer}>
-                    Visa svar
-                  </button>
-                </div>
+                <button className="btn-secondary" onClick={revealAnswer}>
+                  Visa svar{hasKeyboard && <kbd>S</kbd>}
+                </button>
               )}
 
               {showAnswer && current && (
@@ -258,7 +290,7 @@ export default function App() {
 
               {(isCorrect || showAnswer) && (
                 <button className="btn-primary" onClick={startRound}>
-                  Nästa
+                  Nästa{hasKeyboard && <kbd>↵</kbd>}
                 </button>
               )}
             </div>
