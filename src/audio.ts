@@ -1,4 +1,4 @@
-import Soundfont, { Player } from "soundfont-player";
+import Soundfont, { type Player } from "soundfont-player";
 
 let audioCtx: AudioContext | null = null;
 let piano: Player | null = null;
