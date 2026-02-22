@@ -8,6 +8,40 @@ const NOTE_TO_DEGREE: Record<string, number> = {
 
 const DEGREE_LABELS = ["1", "2", "3", "4", "5", "6", "7"];
 
+// Tokenize a sequence string into individual notes.
+// ABC style:  C=C4, c=C5, C,=C3, c'=C6  (no separators needed)
+// Explicit:   C5 F5 G5 (spaces/commas between explicit octaves are ignored)
+// Each note starts with a letter, followed by either a digit or ABC modifiers (,' )
+function tokenizeNotes(input: string): string[] {
+  const stripped = input.replace(/\s/g, "");
+  const matches = stripped.match(/[A-Ga-g](?:\d|[,']*)/g);
+  return matches ?? [];
+}
+
+function normalizeNote(token: string): string | null {
+  // Explicit octave: e.g. C5, f4
+  const explicitMatch = token.match(/^([A-Ga-g])(\d)$/);
+  if (explicitMatch) {
+    return explicitMatch[1].toUpperCase() + explicitMatch[2];
+  }
+
+  // ABC notation
+  const abcMatch = token.match(/^([A-Ga-g])([,']*)?$/);
+  if (!abcMatch) return null;
+
+  const letter = abcMatch[1];
+  const modifiers = abcMatch[2] ?? "";
+  const isLower = letter === letter.toLowerCase();
+
+  let octave = isLower ? 5 : 4;
+  for (const ch of modifiers) {
+    if (ch === ",") octave--;
+    if (ch === "'") octave++;
+  }
+
+  octave = Math.max(0, Math.min(7, octave));
+  return letter.toUpperCase() + octave;
+}
 
 function parseSequences(param: string): Sequence[] {
   return param
@@ -15,11 +49,15 @@ function parseSequences(param: string): Sequence[] {
     .map((s) => s.trim())
     .filter(Boolean)
     .map((seqStr) => {
-      const notes = seqStr.split(",").map((n) => n.trim());
-      const degrees = notes.map((n) => {
-        const letter = n.replace(/[0-9]/g, "").toUpperCase();
-        return NOTE_TO_DEGREE[letter] ?? 0;
-      });
+      const tokens = tokenizeNotes(seqStr);
+      const notes: string[] = [];
+      const degrees: number[] = [];
+      for (const tok of tokens) {
+        const normalized = normalizeNote(tok);
+        if (!normalized) return { notes: [], degrees: [] };
+        notes.push(normalized);
+        degrees.push(NOTE_TO_DEGREE[normalized[0]] ?? 0);
+      }
       return { notes, degrees };
     })
     .filter((seq) => seq.notes.length > 0 && seq.degrees.every((d) => d > 0));
@@ -91,6 +129,22 @@ export default function App() {
     setShowAnswer(true);
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (gameState === "answering") {
+        const digit = parseInt(e.key);
+        if (digit >= 1 && digit <= 7) {
+          addDegree(digit);
+        } else if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          submit();
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [gameState]);
+
   if (sequences.length === 0) {
     return (
       <div className="container">
@@ -99,10 +153,11 @@ export default function App() {
           <p>Inga tonföljder angivna.</p>
           <p>Lägg till tonföljder via URL:en, till exempel:</p>
           <code className="example-url">
-            ?sequences=C5,F5,G5,C5;C4,E4,G4,C5
+            ?s=CFGc;C,EGc
           </code>
           <p className="hint">
-            Separera toner med komma, tonföljder med semikolon.
+            ABC-notation: C=C4, c=C5, C,=C3, c'=C6. Explicit oktav (C5) fungerar också.
+            Separera tonföljder med semikolon.
           </p>
         </div>
       </div>
