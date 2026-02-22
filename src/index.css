@@ -15,7 +15,7 @@ body {
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  padding: 2rem 1rem;
+  padding: 2rem 1rem 4rem;
   background:
     radial-gradient(ellipse at 50% 0%, #2a2220 0%, transparent 60%),
     linear-gradient(180deg, #111 0%, #1a1714 100%);
@@ -84,9 +84,9 @@ h1 {
 }
 
 .btn-degree {
-  width: 3.2rem;
-  height: 3.2rem;
-  border-radius: 4px;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 0;
   border: 1px solid #c8bda566;
   background: linear-gradient(180deg, #fffef7 0%, #f3ede0 100%);
   color: #2a2018;
@@ -103,13 +103,15 @@ h1 {
     inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
-.btn-degree:hover:not(:disabled) {
+.btn-degree:hover:not(:disabled),
+.btn-degree--pressed {
   background: linear-gradient(180deg, #d8ccb0 0%, #c4b696 100%);
   color: #1a1410;
   border-color: #c8bda5;
 }
 
-.btn-degree:active:not(:disabled) {
+.btn-degree:active:not(:disabled),
+.btn-degree--pressed.btn-degree--pressed {
   transform: scale(0.95);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
@@ -117,6 +119,72 @@ h1 {
 .btn-degree:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+/* Settings bar */
+.settings-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  background: #141210;
+  border-top: 1px solid #c8bda522;
+}
+
+.settings-label {
+  font-size: 0.75rem;
+  color: #5a5248;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Switch toggle */
+.switch {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #7a7060;
+  user-select: none;
+}
+
+.switch input {
+  display: none;
+}
+
+.switch-active {
+  color: #d4c4a6;
+}
+
+.switch-track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: #2a2520;
+  border: 1px solid #c8bda544;
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+
+.switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: #d4c4a6;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.switch input:checked ~ .switch-track .switch-thumb {
+  transform: translateX(16px);
 }
 
 /* Action buttons row */

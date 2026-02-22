@@ -7,6 +7,7 @@ const NOTE_TO_DEGREE: Record<string, number> = {
 };
 
 const DEGREE_LABELS = ["1", "2", "3", "4", "5", "6", "7"];
+const SOLFEGE_LABELS = ["Do", "Re", "Mi", "Fa", "Sol", "La", "Ti"];
 
 // Tokenize a sequence string into individual notes.
 // ABC style:  C=C4, c=C5, C,=C3, c'=C6  (no separators needed)
@@ -79,6 +80,8 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasKeyboard, setHasKeyboard] = useState(false);
+  const [useSolfege, setUseSolfege] = useState(false);
+  const [pressedKey, setPressedKey] = useState<number | null>(null);
 
   useEffect(() => {
     const onKeyDown = () => { setHasKeyboard(true); window.removeEventListener("keydown", onKeyDown); };
@@ -91,6 +94,10 @@ export default function App() {
     const seqParam = params.get("sequences") ?? params.get("s") ?? "";
     const parsed = parseSequences(seqParam);
     setSequences(parsed);
+    const solfegeParam = params.get("solfege");
+    if (solfegeParam === "1" || solfegeParam === "true") {
+      setUseSolfege(true);
+    }
     loadAudio().then(() => setIsLoading(false));
   }, []);
 
@@ -151,10 +158,15 @@ export default function App() {
 
   const keyHandlerRef = useRef<(e: KeyboardEvent) => void>();
   keyHandlerRef.current = (e: KeyboardEvent) => {
-    if (gameState === "answering") {
+    if (gameState === "idle" && !isLoading && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      startRound();
+    } else if (gameState === "answering") {
       const digit = parseInt(e.key);
       if (digit >= 1 && digit <= 7) {
         addDegree(digit);
+        setPressedKey(digit);
+        setTimeout(() => setPressedKey(null), 120);
       } else if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         submit();
@@ -209,7 +221,7 @@ export default function App() {
 
       {gameState === "idle" && (
         <button className="btn-primary" onClick={startRound} disabled={isLoading}>
-          {isLoading ? "Laddar piano..." : "Starta"}
+          {isLoading ? "Laddar piano..." : <>Starta{hasKeyboard && <kbd>↵</kbd>}</>}
         </button>
       )}
 
@@ -227,39 +239,34 @@ export default function App() {
           </div>
 
           <div className="degree-buttons">
-            {DEGREE_LABELS.map((label, i) => (
+            {DEGREE_LABELS.map((_, i) => (
               <button
-                key={label}
-                className="btn-degree"
+                key={i}
+                className={`btn-degree${pressedKey === i + 1 ? " btn-degree--pressed" : ""}`}
                 disabled={gameState !== "answering"}
                 onClick={() => addDegree(i + 1)}
               >
-                {label}
+                {useSolfege ? SOLFEGE_LABELS[i] : DEGREE_LABELS[i]}
               </button>
             ))}
           </div>
 
-          <div className="action-row">
-            <button
-              className="btn-secondary"
-              onClick={removeLast}
-              disabled={gameState !== "answering" || userAnswer.length === 0}
-            >
-              Ångra{hasKeyboard && <kbd>⌫</kbd>}
-            </button>
-            <button
-              className="btn-secondary"
-              onClick={gameState === "result" && !isCorrect && !showAnswer ? tryAgain : replay}
-              disabled={isPlaying}
-            >
-              {isPlaying ? "Spelar..." : <>
-                {gameState === "result" && !isCorrect && !showAnswer ? "Försök igen" : "Spela igen"}
-                {hasKeyboard && (gameState === "result" && !isCorrect && !showAnswer
-                  ? <><kbd>↵</kbd><kbd>R</kbd></>
-                  : <kbd>R</kbd>)}
-              </>}
-            </button>
-            {gameState === "answering" && (
+          {gameState === "answering" && (
+            <div className="action-row">
+              <button
+                className="btn-secondary"
+                onClick={removeLast}
+                disabled={userAnswer.length === 0}
+              >
+                Ångra{hasKeyboard && <kbd>⌫</kbd>}
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={replay}
+                disabled={isPlaying}
+              >
+                {isPlaying ? "Spelar..." : <>Spela igen{hasKeyboard && <kbd>R</kbd>}</>}
+              </button>
               <button
                 className="btn-primary"
                 onClick={submit}
@@ -267,8 +274,8 @@ export default function App() {
               >
                 Kolla{hasKeyboard && <kbd>↵</kbd>}
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {gameState === "result" && (
             <div className="result-section">
@@ -277,9 +284,14 @@ export default function App() {
               </p>
 
               {!isCorrect && !showAnswer && (
-                <button className="btn-secondary" onClick={revealAnswer}>
-                  Visa svar{hasKeyboard && <kbd>S</kbd>}
-                </button>
+                <div className="action-row">
+                  <button className="btn-primary" onClick={tryAgain} disabled={isPlaying}>
+                    {isPlaying ? "Spelar..." : <>Försök igen{hasKeyboard && <><kbd>↵</kbd><kbd>R</kbd></>}</>}
+                  </button>
+                  <button className="btn-secondary" onClick={revealAnswer}>
+                    Visa svar{hasKeyboard && <kbd>S</kbd>}
+                  </button>
+                </div>
               )}
 
               {showAnswer && current && (
@@ -297,6 +309,22 @@ export default function App() {
           )}
         </>
       )}
+
+      <div className="settings-bar">
+        <span className="settings-label">Inställningar</span>
+        <label className="switch">
+          <span className={!useSolfege ? "switch-active" : ""}>1 2 3</span>
+          <input
+            type="checkbox"
+            checked={useSolfege}
+            onChange={() => setUseSolfege((v) => !v)}
+          />
+          <span className="switch-track">
+            <span className="switch-thumb" />
+          </span>
+          <span className={useSolfege ? "switch-active" : ""}>Do Re Mi</span>
+        </label>
+      </div>
     </div>
   );
 }
