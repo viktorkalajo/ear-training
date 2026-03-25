@@ -138,26 +138,116 @@ h1 {
   cursor: not-allowed;
 }
 
-/* Settings bar */
-.settings-bar {
+/* Footer bar */
+.footer-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  padding: 0.6rem 1rem;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem;
   background: #141210;
   border-top: 1px solid #c8bda522;
 }
 
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
 .settings-label {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
+  font-family: system-ui, sans-serif;
   color: #5a5248;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
+}
+
+.footer-divider {
+  width: 100%;
+  height: 1px;
+  background: #c8bda515;
+}
+
+/* Accordion for progress/stats */
+.accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0.15rem 0;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.accordion-header:hover .accordion-chevron {
+  color: #d4c4a6;
+}
+
+.accordion-chevron {
+  font-size: 0.9rem;
+  font-family: system-ui, sans-serif;
+  color: #5a5248;
+  transition: transform 0.2s;
+  line-height: 1;
+}
+
+.accordion-chevron--open {
+  transform: rotate(90deg);
+}
+
+.accordion-content {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.7rem;
+  font-family: system-ui, sans-serif;
+  color: #7a7060;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  text-align: center;
+}
+
+.accordion-content p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.accordion-thresholds {
+  color: #5a5248;
+}
+
+.accordion-empty {
+  color: #5a5248;
+  font-style: italic;
+}
+
+.btn-stats-link {
+  align-self: center;
+  background: none;
+  border: 1px solid #c8bda533;
+  color: #d4c4a6;
+  font-family: system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 400;
+  padding: 0.3rem 0.8rem;
+  border-radius: 3px;
+  cursor: pointer;
+  margin-top: 0.15rem;
+  box-shadow: none;
+}
+
+.btn-stats-link:hover {
+  background: #2a2520;
+  border-color: #c8bda566;
 }
 
 /* Switch toggle */
@@ -166,7 +256,8 @@ h1 {
   align-items: center;
   gap: 0.6rem;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.7rem;
+  font-family: system-ui, sans-serif;
   color: #7a7060;
   user-select: none;
 }
@@ -208,8 +299,12 @@ h1 {
 .action-row {
   display: flex;
   gap: 0.5rem;
-  flex-wrap: wrap;
   justify-content: center;
+  width: 100%;
+}
+
+.action-row > button {
+  white-space: nowrap;
 }
 
 /* Buttons */
@@ -250,6 +345,10 @@ button:disabled {
 .btn-secondary:hover:not(:disabled) {
   background: #3a332a;
   border-color: #c8bda588;
+}
+
+.btn-full {
+  width: 100%;
 }
 
 /* Result section */
@@ -338,5 +437,219 @@ button kbd {
 .btn-secondary kbd {
   background: rgba(255, 255, 255, 0.08);
   color: #d4c4a6;
+}
+
+/* Header with title + name */
+.header {
+  text-align: center;
+}
+
+.header h1 {
+  margin-bottom: 0;
+}
+
+.sequence-name {
+  font-size: 0.85rem;
+  color: #a89b88;
+  word-break: break-all;
+  margin-top: 0.15rem;
+}
+
+/* Progress row: dots + best medal */
+.progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.progress-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #3a332a;
+  border: 1px solid #c8bda533;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.dot-correct {
+  background: #7cb87a;
+  border-color: #7cb87a;
+}
+
+.dot-wrong {
+  background: #e08878;
+  border-color: #e08878;
+}
+
+.dot-current {
+  border-color: #d4c4a6;
+}
+
+.best-medal {
+  font-size: 0.7rem;
+  font-family: system-ui, sans-serif;
+  color: #7a7060;
+}
+
+
+/* Batch summary screen */
+.batch-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.batch-summary-score {
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: #d4c4a6;
+  font-family: system-ui, sans-serif;
+}
+
+.batch-summary-medal {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #f0ece4;
+}
+
+.batch-summary-record {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #7cb87a;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.batch-summary-best {
+  font-size: 0.9rem;
+  color: #a89b88;
+}
+
+/* Stats page */
+.stats-back {
+  align-self: flex-start;
+}
+
+.stats-summary {
+  width: 100%;
+  background: #2a2520;
+  border: 1px solid #c8bda533;
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+}
+
+.stats-row span:first-child {
+  color: #a89b88;
+}
+
+.stats-row span:last-child {
+  color: #f0ece4;
+  font-family: system-ui, sans-serif;
+}
+
+.stats-empty {
+  color: #7a7060;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 2rem 0;
+}
+
+/* Bar chart */
+.chart {
+  width: 100%;
+  display: flex;
+  gap: 0.5rem;
+  background: #2a2520;
+  border: 1px solid #c8bda533;
+  border-radius: 6px;
+  padding: 1rem 1rem 0.5rem;
+}
+
+.chart-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 200px;
+  font-size: 0.65rem;
+  color: #7a7060;
+  font-family: system-ui, sans-serif;
+  text-align: right;
+  padding-bottom: 2rem;
+  flex-shrink: 0;
+}
+
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 232px;
+  overflow-x: auto;
+  flex: 1;
+  padding-bottom: 0;
+}
+
+.chart-bar {
+  flex: 0 0 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 200px;
+  position: relative;
+}
+
+.chart-bar-fill {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 2px 2px 0 0;
+  transition: height 0.3s ease;
+}
+
+.chart-bar[data-medal="none"] .chart-bar-fill {
+  background: #4a4540;
+}
+
+.chart-bar[data-medal="bronze"] .chart-bar-fill {
+  background: #cd7f32;
+}
+
+.chart-bar[data-medal="silver"] .chart-bar-fill {
+  background: #c0c0c0;
+}
+
+.chart-bar[data-medal="gold"] .chart-bar-fill {
+  background: #d4a017;
+}
+
+.chart-bar-score {
+  font-size: 0.6rem;
+  color: #a89b88;
+  font-family: system-ui, sans-serif;
+  margin-bottom: 2px;
+  order: -1;
+}
+
+.chart-bar-label {
+  font-size: 0.6rem;
+  color: #5a5248;
+  font-family: system-ui, sans-serif;
+  margin-top: 4px;
 }
 

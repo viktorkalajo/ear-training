@@ -1,6 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { playSequence, playCadence, loadAudio } from "./audio";
-import type { Sequence, GameState } from "./types";
+import { hashString, loadProgress, saveProgress, getMedal, getMedalEmoji, createEmptyProgress, BATCH_SIZE } from "./progress";
+import BatchSummary from "./BatchSummary";
+import StatsView from "./StatsView";
+import type { Sequence, GameState, ProgressData } from "./types";
 
 const NOTE_TO_DEGREE: Record<string, number> = {
   C: 1, D: 2, E: 3, F: 4, G: 5, A: 6, B: 7,
@@ -82,6 +85,12 @@ export default function App() {
   const [hasKeyboard, setHasKeyboard] = useState(false);
   const [useSolfege, setUseSolfege] = useState(false);
   const [pressedKey, setPressedKey] = useState<number | null>(null);
+  const [view, setView] = useState<"practice" | "stats">("practice");
+  const [statsExpanded, setStatsExpanded] = useState(false);
+  const [progressData, setProgressData] = useState<ProgressData | null>(null);
+  const [sequenceName, setSequenceName] = useState<string | null>(null);
+  const progressHashRef = useRef<string>("");
+  const hasRecordedAttempt = useRef(false);
 
   useEffect(() => {
     const onKeyDown = () => { setHasKeyboard(true); window.removeEventListener("keydown", onKeyDown); };
@@ -98,11 +107,92 @@ export default function App() {
     if (solfegeParam === "1" || solfegeParam === "true") {
       setUseSolfege(true);
     }
+    const name = params.get("name");
+    setSequenceName(name);
+    if (params.get("view") === "stats") {
+      setView("stats");
+    }
+    // Load or create progress
+    if (seqParam) {
+      const hash = hashString(seqParam);
+      progressHashRef.current = hash;
+      const existing = loadProgress(hash);
+      if (existing) {
+        // Update name if it changed
+        if (existing.name !== name) {
+          existing.name = name;
+          saveProgress(hash, existing);
+        }
+        setProgressData(existing);
+      } else {
+        const fresh = createEmptyProgress(seqParam, name);
+        saveProgress(hash, fresh);
+        setProgressData(fresh);
+      }
+    }
     loadAudio().then(() => setIsLoading(false));
   }, []);
 
+  // View routing
+  const goToStats = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", "stats");
+    history.pushState(null, "", url.toString());
+    setView("stats");
+  }, []);
+
+  const goToPractice = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("view");
+    history.pushState(null, "", url.toString());
+    setView("practice");
+  }, []);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      setView(params.get("view") === "stats" ? "stats" : "practice");
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  const updateProgress = useCallback((updater: (data: ProgressData) => ProgressData) => {
+    setProgressData((prev) => {
+      if (!prev) return prev;
+      const updated = updater(prev);
+      saveProgress(progressHashRef.current, updated);
+      return updated;
+    });
+  }, []);
+
+  const finalizeBatch = useCallback(() => {
+    if (!progressData) return { score: 0, isNewBest: false };
+    const score = progressData.currentBatch.filter(Boolean).length;
+    const isNewBest = score > progressData.bestScore;
+    const medal = getMedal(score);
+    const bestMedal = isNewBest ? medal : progressData.bestMedal;
+    updateProgress((prev) => ({
+      ...prev,
+      batches: [...prev.batches, { score, timestamp: Date.now() }],
+      bestScore: isNewBest ? score : prev.bestScore,
+      bestMedal,
+      currentBatch: [],
+    }));
+    return { score, isNewBest };
+  }, [progressData, updateProgress]);
+
+  const [lastBatchResult, setLastBatchResult] = useState<{ score: number; isNewBest: boolean }>({ score: 0, isNewBest: false });
+
   const startRound = useCallback(async () => {
     if (sequences.length === 0) return;
+    // Check if batch is complete
+    if (progressData && progressData.currentBatch.length >= BATCH_SIZE) {
+      setLastBatchResult(finalizeBatch());
+      setGameState("batch-summary");
+      return;
+    }
+    hasRecordedAttempt.current = false;
     const seq = pickRandom(sequences, current);
     setCurrent(seq);
     setUserAnswer([]);
@@ -114,7 +204,7 @@ export default function App() {
     await playSequence(seq!.notes);
     setIsPlaying(false);
     setGameState("answering");
-  }, [sequences]);
+  }, [sequences, current, progressData, finalizeBatch]);
 
   const replay = useCallback(async () => {
     if (!current || isPlaying) return;
@@ -139,6 +229,14 @@ export default function App() {
     const correct =
       userAnswer.length === current.degrees.length &&
       userAnswer.every((d, i) => d === current.degrees[i]);
+    // Record first-try result
+    if (!hasRecordedAttempt.current) {
+      hasRecordedAttempt.current = true;
+      updateProgress((prev) => ({
+        ...prev,
+        currentBatch: [...prev.currentBatch, correct],
+      }));
+    }
     setIsCorrect(correct);
     setGameState("result");
   };
@@ -159,8 +257,39 @@ export default function App() {
     setGameState("answering");
   }, [current, isPlaying]);
 
+  const continuePractice = useCallback(async () => {
+    hasRecordedAttempt.current = false;
+    const seq = pickRandom(sequences, current);
+    setCurrent(seq);
+    setUserAnswer([]);
+    setIsCorrect(null);
+    setShowAnswer(false);
+    setGameState("playing");
+    setIsPlaying(true);
+    await playCadence();
+    await playSequence(seq!.notes);
+    setIsPlaying(false);
+    setGameState("answering");
+  }, [sequences, current]);
+
   const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(undefined);
-  keyHandlerRef.current = (e: KeyboardEvent) => {
+  useEffect(() => { keyHandlerRef.current = (e: KeyboardEvent) => {
+    if (view === "stats") {
+      if (e.key === "Escape" || e.key === "Backspace") {
+        e.preventDefault();
+        goToPractice();
+      }
+      return;
+    }
+    if (gameState === "batch-summary") {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        continuePractice();
+      } else if (e.key === "s" || e.key === "S") {
+        goToStats();
+      }
+      return;
+    }
     if (gameState === "idle" && !isLoading && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
       startRound();
@@ -191,13 +320,19 @@ export default function App() {
         replay();
       }
     }
-  };
+  }; });
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => keyHandlerRef.current?.(e);
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
+
+  const displayName = sequenceName ?? (progressData?.sequenceParam ?? "");
+
+  if (view === "stats" && progressData) {
+    return <StatsView progressData={progressData} name={displayName} onBack={goToPractice} />;
+  }
 
   if (sequences.length === 0) {
     return (
@@ -218,9 +353,27 @@ export default function App() {
     );
   }
 
+  const batchCount = progressData?.currentBatch.length ?? 0;
+  const isInRound = gameState === "playing" || gameState === "answering" || gameState === "result";
+
   return (
     <div className="container">
-      <h1>Gehörsträning</h1>
+      <div className="header">
+        <h1>Gehörsträning</h1>
+        {displayName && <div className="sequence-name">{displayName}</div>}
+      </div>
+
+      {gameState === "batch-summary" && progressData && (
+        <BatchSummary
+          score={lastBatchResult.score}
+          isNewBest={lastBatchResult.isNewBest}
+          bestScore={progressData.bestScore}
+          bestMedal={progressData.bestMedal}
+          onContinue={continuePractice}
+          onStats={goToStats}
+          hasKeyboard={hasKeyboard}
+        />
+      )}
 
       {gameState === "idle" && (
         <button className="btn-primary" onClick={startRound} disabled={isLoading}>
@@ -228,7 +381,7 @@ export default function App() {
         </button>
       )}
 
-      {gameState !== "idle" && (
+      {gameState !== "idle" && gameState !== "batch-summary" && (
         <>
           <div className="answer-display">
             <span className="answer-label">Ditt svar:</span>
@@ -304,7 +457,7 @@ export default function App() {
               )}
 
               {(isCorrect || showAnswer) && (
-                <button className="btn-primary" onClick={startRound}>
+                <button className="btn-primary btn-full" onClick={startRound}>
                   Nästa{hasKeyboard && <kbd>↵</kbd>}
                 </button>
               )}
@@ -313,20 +466,70 @@ export default function App() {
         </>
       )}
 
-      <div className="settings-bar">
-        <span className="settings-label">Inställningar</span>
-        <label className="switch">
-          <span className={!useSolfege ? "switch-active" : ""}>1 2 3</span>
-          <input
-            type="checkbox"
-            checked={useSolfege}
-            onChange={() => setUseSolfege((v) => !v)}
-          />
-          <span className="switch-track">
-            <span className="switch-thumb" />
-          </span>
-          <span className={useSolfege ? "switch-active" : ""}>Do Re Mi</span>
-        </label>
+      <div className="footer-bar">
+        {progressData && gameState !== "batch-summary" && (
+          <>
+            <button className="accordion-header" onClick={() => setStatsExpanded((v) => !v)}>
+              <div className="progress-row">
+                <div className="progress-dots">
+                  {Array.from({ length: BATCH_SIZE }, (_, i) => {
+                    const result = progressData.currentBatch[i];
+                    const isCurrent = isInRound && i === batchCount;
+                    return (
+                      <span
+                        key={i}
+                        className={`dot${result === true ? " dot-correct" : result === false ? " dot-wrong" : ""}${isCurrent ? " dot-current" : ""}`}
+                      />
+                    );
+                  })}
+                </div>
+                {progressData.bestScore > 0 && (
+                  <span className="best-medal">{getMedalEmoji(progressData.bestMedal)} {progressData.bestScore}/{BATCH_SIZE}</span>
+                )}
+              </div>
+              <span className={`accordion-chevron${statsExpanded ? " accordion-chevron--open" : ""}`}>&#x203A;</span>
+            </button>
+
+            {statsExpanded && (
+              <div className="accordion-content">
+                {progressData.bestScore > 0 ? (
+                  <>
+                    <p>Bästa omgång: {getMedalEmoji(progressData.bestMedal)} {progressData.bestScore}/{BATCH_SIZE} — {progressData.bestMedal === "gold" ? "Guld" : progressData.bestMedal === "silver" ? "Silver" : progressData.bestMedal === "bronze" ? "Brons" : "Ingen medalj ännu"}</p>
+                    <p className="accordion-thresholds">Brons: 5+ · Silver: 7+ · Guld: 10/10</p>
+                    {progressData.batches.length > 0 && (
+                      <button className="btn-stats-link" onClick={goToStats}>
+                        Visa statistik
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="accordion-empty">Avsluta din första omgång för att se resultat</p>
+                    <p className="accordion-thresholds">Brons: 5+ · Silver: 7+ · Guld: 10/10</p>
+                  </>
+                )}
+              </div>
+            )}
+          </>
+        )}
+
+        <div className="footer-divider" />
+
+        <div className="settings-row">
+          <span className="settings-label">Inställningar</span>
+          <label className="switch">
+            <span className={!useSolfege ? "switch-active" : ""}>1 2 3</span>
+            <input
+              type="checkbox"
+              checked={useSolfege}
+              onChange={() => setUseSolfege((v) => !v)}
+            />
+            <span className="switch-track">
+              <span className="switch-thumb" />
+            </span>
+            <span className={useSolfege ? "switch-active" : ""}>Do Re Mi</span>
+          </label>
+        </div>
       </div>
     </div>
   );
