@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { playSequence, playCadence, loadAudio } from "./audio";
-import { hashString, loadProgress, saveProgress, getMedal, getMedalEmoji, createEmptyProgress, BATCH_SIZE, getLibraryMedal } from "./progress";
+import { hashString, loadProgress, saveProgress, getMedal, getMedalEmoji, createEmptyProgress, BATCH_SIZE, getLibraryMedal, loadVisitedLinks, saveVisitedLink, removeVisitedLink } from "./progress";
 import BatchSummary from "./BatchSummary";
 import StatsView from "./StatsView";
-import type { Sequence, GameState, ProgressData } from "./types";
+import type { Sequence, GameState, ProgressData, VisitedLink, Medal } from "./types";
 
 const NOTE_TO_DEGREE: Record<string, number> = {
   C: 1, D: 2, E: 3, F: 4, G: 5, A: 6, B: 7,
@@ -11,13 +11,6 @@ const NOTE_TO_DEGREE: Record<string, number> = {
 
 const DEGREE_LABELS = ["1", "2", "3", "4", "5", "6", "7"];
 const SOLFEGE_LABELS = ["Do", "Re", "Mi", "Fa", "Sol", "La", "Ti"];
-
-const LIBRARY = [
-  {
-    name: "Kadenser i dur",
-    sequences: "CGc;CFC;CFGc;CDGc;CAFGc;CFG",
-  },
-];
 
 // Tokenize a sequence string into individual notes.
 // ABC style:  C=C4, c=C5, C,=C3, c'=C6  (no separators needed)
@@ -120,12 +113,13 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasKeyboard, setHasKeyboard] = useState(false);
-  const [useSolfege, setUseSolfege] = useState(false);
+  const [useSolfege, setUseSolfege] = useState(() => localStorage.getItem("useSolfege") === "1");
   const [pressedKey, setPressedKey] = useState<number | null>(null);
   const [view, setView] = useState<"practice" | "stats">("practice");
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [progressData, setProgressData] = useState<ProgressData | null>(null);
   const [sequenceName, setSequenceName] = useState<string | null>(null);
+  const [visitedLinks, setVisitedLinks] = useState<VisitedLink[]>([]);
   const progressHashRef = useRef<string>("");
   const hasRecordedAttempt = useRef(false);
   const batchQueueRef = useRef<Sequence[]>([]);
@@ -156,17 +150,24 @@ export default function App() {
       progressHashRef.current = hash;
       const existing = loadProgress(hash);
       if (existing) {
-        // Update name if it changed
+        // Reset in-progress batch — the batch queue is rebuilt on every mount
+        // so stale dots from a previous session would be misleading
+        existing.currentBatch = [];
         if (existing.name !== name) {
           existing.name = name;
-          saveProgress(hash, existing);
         }
+        saveProgress(hash, existing);
         setProgressData(existing);
       } else {
         const fresh = createEmptyProgress(seqParam, name);
         saveProgress(hash, fresh);
         setProgressData(fresh);
       }
+      // Save to visited links
+      saveVisitedLink(seqParam, name);
+    } else {
+      // On start page — load visited links
+      setVisitedLinks(loadVisitedLinks());
     }
     loadAudio().then(() => setIsLoading(false));
   }, []);
@@ -205,9 +206,10 @@ export default function App() {
   }, []);
 
   const finalizeBatch = useCallback(() => {
-    if (!progressData) return { score: 0, isNewBest: false };
+    if (!progressData) return { score: 0, isNewBest: false, previousBestMedal: "none" as Medal };
     const score = progressData.currentBatch.filter(Boolean).length;
     const isNewBest = score > progressData.bestScore;
+    const previousBestMedal = progressData.bestMedal;
     const medal = getMedal(score);
     const bestMedal = isNewBest ? medal : progressData.bestMedal;
     updateProgress((prev) => ({
@@ -218,10 +220,10 @@ export default function App() {
       currentBatch: [],
     }));
     batchQueueRef.current = [];
-    return { score, isNewBest };
+    return { score, isNewBest, previousBestMedal };
   }, [progressData, updateProgress]);
 
-  const [lastBatchResult, setLastBatchResult] = useState<{ score: number; isNewBest: boolean }>({ score: 0, isNewBest: false });
+  const [lastBatchResult, setLastBatchResult] = useState<{ score: number; isNewBest: boolean; previousBestMedal: Medal }>({ score: 0, isNewBest: false, previousBestMedal: "none" });
 
   const startRound = useCallback(async () => {
     if (sequences.length === 0) return;
@@ -380,23 +382,46 @@ export default function App() {
     return <StatsView progressData={progressData} name={displayName} onBack={goToPractice} />;
   }
 
+  const handleRemoveLink = (sequences: string) => {
+    removeVisitedLink(sequences);
+    setVisitedLinks(loadVisitedLinks());
+  };
+
   if (sequences.length === 0) {
+    const sortedLinks = [...visitedLinks].sort((a, b) => b.visitedAt - a.visitedAt);
     return (
       <div className="container">
         <h1>Gehörsträning</h1>
-        <div className="library">
-          {LIBRARY.map((item) => {
-            const medal = getLibraryMedal(item.sequences);
-            return (
-              <a key={item.name} className="library-card" href={`?s=${encodeURIComponent(item.sequences)}&name=${encodeURIComponent(item.name)}`}>
-                <span className="library-card-name">
-                  {medal !== "none" && <span className="library-card-medal">{getMedalEmoji(medal)}</span>}
-                  {item.name}
-                </span>
-              </a>
-            );
-          })}
-        </div>
+        {sortedLinks.length > 0 ? (
+          <div className="library">
+            {sortedLinks.map((item) => {
+              const medal = getLibraryMedal(item.sequences);
+              const href = item.name
+                ? `?s=${encodeURIComponent(item.sequences)}&name=${encodeURIComponent(item.name)}`
+                : `?s=${encodeURIComponent(item.sequences)}`;
+              return (
+                <div key={item.sequences} className="library-card-row">
+                  <a className="library-card" href={href}>
+                    <span className="library-card-name">
+                      {medal !== "none" && <span className="library-card-medal">{getMedalEmoji(medal)}</span>}
+                      {item.name ?? item.sequences}
+                    </span>
+                  </a>
+                  <button
+                    className="btn-remove"
+                    onClick={() => handleRemoveLink(item.sequences)}
+                    title="Ta bort"
+                    aria-label={`Ta bort ${item.name ?? item.sequences}`}
+                  >
+                    &times;
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="library-empty">Inga övningar ännu. Öppna en länk med sekvenser för att börja.</p>
+        )}
       </div>
     );
   }
@@ -407,7 +432,7 @@ export default function App() {
   return (
     <div className="container">
       <div className="header">
-        <h1>Gehörsträning</h1>
+        <h1><a href={import.meta.env.BASE_URL} className="title-link">Gehörsträning</a></h1>
         {displayName && <div className="sequence-name">{displayName}</div>}
       </div>
 
@@ -415,6 +440,7 @@ export default function App() {
         <BatchSummary
           score={lastBatchResult.score}
           isNewBest={lastBatchResult.isNewBest}
+          previousBestMedal={lastBatchResult.previousBestMedal}
           bestScore={progressData.bestScore}
           bestMedal={progressData.bestMedal}
           onContinue={continuePractice}
@@ -424,9 +450,15 @@ export default function App() {
       )}
 
       {gameState === "idle" && (
-        <button className="btn-primary" onClick={startRound} disabled={isLoading}>
-          {isLoading ? "Laddar piano..." : <>Starta{hasKeyboard && <kbd>↵</kbd>}</>}
-        </button>
+        <>
+          <button className="btn-primary" onClick={startRound} disabled={isLoading}>
+            {isLoading ? "Laddar piano..." : <>Starta{hasKeyboard && <kbd>↵</kbd>}</>}
+          </button>
+          {/* TODO: remove — temporary confetti test */}
+          <button className="btn-secondary" style={{ marginTop: 12 }} onClick={() => { setLastBatchResult({ score: 10, isNewBest: true, previousBestMedal: "silver" }); setGameState("batch-summary"); }}>
+            Test confetti
+          </button>
+        </>
       )}
 
       {gameState !== "idle" && gameState !== "batch-summary" && (
@@ -561,7 +593,7 @@ export default function App() {
           </>
         )}
 
-        <div className="footer-divider" />
+        {progressData && gameState !== "batch-summary" && <div className="footer-divider" />}
 
         <div className="settings-row">
           <span className="settings-label">Inställningar</span>
@@ -570,7 +602,7 @@ export default function App() {
             <input
               type="checkbox"
               checked={useSolfege}
-              onChange={() => setUseSolfege((v) => !v)}
+              onChange={() => setUseSolfege((v) => { const next = !v; localStorage.setItem("useSolfege", next ? "1" : "0"); return next; })}
             />
             <span className="switch-track">
               <span className="switch-thumb" />

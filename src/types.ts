@@ -20,3 +20,9 @@ export interface ProgressData {
   bestMedal: Medal;
   currentBatch: boolean[];
 }
+
+export interface VisitedLink {
+  sequences: string;
+  name: string | null;
+  visitedAt: number;
+}

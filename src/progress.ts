@@ -1,8 +1,9 @@
-import type { Medal, ProgressData } from "./types";
+import type { Medal, ProgressData, VisitedLink } from "./types";
 
 export const BATCH_SIZE = 10;
 
 const STORAGE_PREFIX = "ear-training:progress:";
+const VISITED_LINKS_KEY = "ear-training:visited-links";
 
 export function hashString(str: string): string {
   let hash = 5381;
@@ -61,4 +62,42 @@ export function createEmptyProgress(sequenceParam: string, name: string | null):
     bestMedal: "none",
     currentBatch: [],
   };
+}
+
+export function loadVisitedLinks(): VisitedLink[] {
+  try {
+    const raw = localStorage.getItem(VISITED_LINKS_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as VisitedLink[];
+  } catch {
+    return [];
+  }
+}
+
+export function saveVisitedLink(sequences: string, name: string | null): void {
+  try {
+    const links = loadVisitedLinks();
+    const existing = links.find((l) => l.sequences === sequences);
+    if (existing) {
+      existing.name = name;
+      existing.visitedAt = Date.now();
+    } else {
+      links.push({ sequences, name, visitedAt: Date.now() });
+    }
+    localStorage.setItem(VISITED_LINKS_KEY, JSON.stringify(links));
+  } catch {
+    // localStorage full or unavailable
+  }
+}
+
+export function removeVisitedLink(sequences: string): void {
+  try {
+    const links = loadVisitedLinks().filter((l) => l.sequences !== sequences);
+    localStorage.setItem(VISITED_LINKS_KEY, JSON.stringify(links));
+    // Also remove progress data
+    const hash = hashString(sequences);
+    localStorage.removeItem(STORAGE_PREFIX + hash);
+  } catch {
+    // silently fail
+  }
 }
