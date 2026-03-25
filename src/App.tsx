@@ -450,15 +450,9 @@ export default function App() {
       )}
 
       {gameState === "idle" && (
-        <>
-          <button className="btn-primary" onClick={startRound} disabled={isLoading}>
-            {isLoading ? "Laddar piano..." : <>Starta{hasKeyboard && <kbd>↵</kbd>}</>}
-          </button>
-          {/* TODO: remove — temporary confetti test */}
-          <button className="btn-secondary" style={{ marginTop: 12 }} onClick={() => { setLastBatchResult({ score: 10, isNewBest: true, previousBestMedal: "silver" }); setGameState("batch-summary"); }}>
-            Test confetti
-          </button>
-        </>
+        <button className="btn-primary" onClick={startRound} disabled={isLoading}>
+          {isLoading ? "Laddar piano..." : <>Starta{hasKeyboard && <kbd>↵</kbd>}</>}
+        </button>
       )}
 
       {gameState !== "idle" && gameState !== "batch-summary" && (
