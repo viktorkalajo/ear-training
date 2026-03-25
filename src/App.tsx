@@ -234,7 +234,7 @@ export default function App() {
             <span className="answer-label">Ditt svar:</span>
             <span className="answer-degrees">
               {userAnswer.length > 0 ? (
-                userAnswer.join(", ")
+                userAnswer.map(d => useSolfege ? SOLFEGE_LABELS[d - 1] : d).join(", ")
               ) : (
                 <span className="placeholder">&mdash;</span>
               )}
@@ -249,7 +249,7 @@ export default function App() {
                 disabled={gameState !== "answering"}
                 onClick={() => addDegree(i + 1)}
               >
-                {useSolfege ? SOLFEGE_LABELS[i] : DEGREE_LABELS[i]}
+                {useSolfege ? <>{SOLFEGE_LABELS[i]}{hasKeyboard && <kbd className="degree-kbd">{i + 1}</kbd>}</> : DEGREE_LABELS[i]}
               </button>
             ))}
           </div>
@@ -299,7 +299,7 @@ export default function App() {
 
               {showAnswer && current && (
                 <p className="revealed-answer">
-                  Svar: {current.degrees.join(", ")}
+                  Svar: {current.degrees.map(d => useSolfege ? SOLFEGE_LABELS[d - 1] : d).join(", ")}
                 </p>
               )}
 
