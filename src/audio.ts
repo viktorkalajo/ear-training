@@ -6,7 +6,15 @@ let pianoLoading: Promise<Player> | null = null;
 
 function getAudioContext(): AudioContext {
   if (!audioCtx) {
-    audioCtx = new AudioContext();
+    // Use "playback" category on iOS so audio plays even when the mute switch is on
+    const AudioCtx =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext: typeof AudioContext })
+        .webkitAudioContext;
+    audioCtx = new AudioCtx({
+      // @ts-expect-error — webkit-only option, not in the TS typings
+      audioCategory: "playback",
+    });
   }
   return audioCtx;
 }
