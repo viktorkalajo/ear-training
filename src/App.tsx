@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { playSequence, loadAudio } from "./audio";
+import { playSequence, playCadence, loadAudio } from "./audio";
 import type { Sequence, GameState } from "./types";
 
 const NOTE_TO_DEGREE: Record<string, number> = {
@@ -110,6 +110,7 @@ export default function App() {
     setShowAnswer(false);
     setGameState("playing");
     setIsPlaying(true);
+    await playCadence();
     await playSequence(seq!.notes);
     setIsPlaying(false);
     setGameState("answering");
@@ -118,6 +119,7 @@ export default function App() {
   const replay = useCallback(async () => {
     if (!current || isPlaying) return;
     setIsPlaying(true);
+    await playCadence();
     await playSequence(current.notes);
     setIsPlaying(false);
   }, [current, isPlaying]);
@@ -151,6 +153,7 @@ export default function App() {
     setIsCorrect(null);
     setGameState("playing");
     setIsPlaying(true);
+    await playCadence();
     await playSequence(current.notes);
     setIsPlaying(false);
     setGameState("answering");
