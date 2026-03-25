@@ -46,6 +46,12 @@ export function getMedalEmoji(medal: Medal): string {
   }
 }
 
+export function getLibraryMedal(sequences: string): Medal {
+  const hash = hashString(sequences);
+  const data = loadProgress(hash);
+  return data?.bestMedal ?? "none";
+}
+
 export function createEmptyProgress(sequenceParam: string, name: string | null): ProgressData {
   return {
     sequenceParam,

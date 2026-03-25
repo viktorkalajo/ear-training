@@ -15,7 +15,7 @@ body {
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  padding: 2rem 1rem 4rem;
+  padding: 1.5rem 1rem 2rem;
   background:
     radial-gradient(ellipse at 50% 0%, #2a2220 0%, transparent 60%),
     linear-gradient(180deg, #111 0%, #1a1714 100%);
@@ -30,7 +30,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 h1 {
@@ -388,33 +388,40 @@ button:disabled {
   font-family: system-ui, sans-serif;
 }
 
-/* Empty state */
-.message-box {
-  background: #2a2520;
-  border: 1px solid #c8bda533;
-  border-radius: 6px;
-  padding: 1.5rem;
-  text-align: center;
+/* Library */
+.library {
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
-.example-url {
-  display: block;
-  background: #1a1714;
-  padding: 0.75rem;
-  border-radius: 4px;
-  font-size: 0.85rem;
-  word-break: break-all;
+.library-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background: #2a2520;
+  border: 1px solid #c8bda533;
+  border-radius: 6px;
+  padding: 1.1rem 1.25rem;
+  text-decoration: none;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.library-card:hover {
+  background: #332e28;
+  border-color: #c8bda566;
+}
+
+.library-card-name {
+  font-size: 1.15rem;
+  font-weight: 600;
   color: #d4c4a6;
-  font-family: monospace;
 }
 
-.hint {
-  font-size: 0.9rem;
-  color: #a89b88;
+.library-card-medal {
+  margin-right: 0.4rem;
 }
 
 button kbd {
@@ -586,12 +593,11 @@ button kbd {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: 200px;
+  height: 120px;
   font-size: 0.65rem;
   color: #7a7060;
   font-family: system-ui, sans-serif;
   text-align: right;
-  padding-bottom: 2rem;
   flex-shrink: 0;
 }
 
@@ -599,10 +605,9 @@ button kbd {
   display: flex;
   align-items: flex-end;
   gap: 4px;
-  height: 232px;
   overflow-x: auto;
   flex: 1;
-  padding-bottom: 0;
+  padding-bottom: 1.25rem;
 }
 
 .chart-bar {
@@ -611,11 +616,14 @@ button kbd {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  height: 200px;
+  height: 120px;
   position: relative;
 }
 
 .chart-bar-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
   width: 100%;
   min-height: 2px;
   border-radius: 2px 2px 0 0;
@@ -642,14 +650,17 @@ button kbd {
   font-size: 0.6rem;
   color: #a89b88;
   font-family: system-ui, sans-serif;
+  position: absolute;
+  bottom: 100%;
   margin-bottom: 2px;
-  order: -1;
 }
 
 .chart-bar-label {
   font-size: 0.6rem;
   color: #5a5248;
   font-family: system-ui, sans-serif;
+  position: absolute;
+  top: 100%;
   margin-top: 4px;
 }
 

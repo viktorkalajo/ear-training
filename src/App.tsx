@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { playSequence, playCadence, loadAudio } from "./audio";
-import { hashString, loadProgress, saveProgress, getMedal, getMedalEmoji, createEmptyProgress, BATCH_SIZE } from "./progress";
+import { hashString, loadProgress, saveProgress, getMedal, getMedalEmoji, createEmptyProgress, BATCH_SIZE, getLibraryMedal } from "./progress";
 import BatchSummary from "./BatchSummary";
 import StatsView from "./StatsView";
 import type { Sequence, GameState, ProgressData } from "./types";
@@ -11,6 +11,13 @@ const NOTE_TO_DEGREE: Record<string, number> = {
 
 const DEGREE_LABELS = ["1", "2", "3", "4", "5", "6", "7"];
 const SOLFEGE_LABELS = ["Do", "Re", "Mi", "Fa", "Sol", "La", "Ti"];
+
+const LIBRARY = [
+  {
+    name: "Kadenser i dur",
+    sequences: "CGc;CFC;CFGc;CDGc;CAFGc;CFG",
+  },
+];
 
 // Tokenize a sequence string into individual notes.
 // ABC style:  C=C4, c=C5, C,=C3, c'=C6  (no separators needed)
@@ -67,10 +74,40 @@ function parseSequences(param: string): Sequence[] {
     .filter((seq) => seq.notes.length > 0 && seq.degrees.every((d) => d > 0));
 }
 
-function pickRandom<T>(arr: T[], exclude?: T): T {
-  if (arr.length <= 1) return arr[0];
-  const filtered = arr.filter((item) => item !== exclude);
-  return filtered[Math.floor(Math.random() * filtered.length)];
+/** Build a batch of `size` items from `arr` with good variance:
+ *  - No immediate consecutive duplicates
+ *  - Each item appears at most ceil(size / arr.length) times
+ */
+function buildBatchOrder<T>(arr: T[], size: number): T[] {
+  if (arr.length === 0) return [];
+  if (arr.length === 1) return Array(size).fill(arr[0]);
+
+  // Repeat the pool enough times, shuffle, then fix any consecutive dupes
+  const maxPer = Math.ceil(size / arr.length);
+  const pool: T[] = [];
+  for (let i = 0; i < maxPer; i++) pool.push(...arr);
+
+  // Fisher-Yates shuffle
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+
+  const result = pool.slice(0, size);
+
+  // Fix consecutive duplicates by swapping with a later non-duplicate
+  for (let i = 1; i < result.length; i++) {
+    if (result[i] === result[i - 1]) {
+      for (let j = i + 1; j < result.length; j++) {
+        if (result[j] !== result[i - 1]) {
+          [result[i], result[j]] = [result[j], result[i]];
+          break;
+        }
+      }
+    }
+  }
+
+  return result;
 }
 
 export default function App() {
@@ -91,6 +128,7 @@ export default function App() {
   const [sequenceName, setSequenceName] = useState<string | null>(null);
   const progressHashRef = useRef<string>("");
   const hasRecordedAttempt = useRef(false);
+  const batchQueueRef = useRef<Sequence[]>([]);
 
   useEffect(() => {
     const onKeyDown = () => { setHasKeyboard(true); window.removeEventListener("keydown", onKeyDown); };
@@ -179,6 +217,7 @@ export default function App() {
       bestMedal,
       currentBatch: [],
     }));
+    batchQueueRef.current = [];
     return { score, isNewBest };
   }, [progressData, updateProgress]);
 
@@ -192,8 +231,12 @@ export default function App() {
       setGameState("batch-summary");
       return;
     }
+    // Build a fresh batch queue when starting a new batch
+    if (batchQueueRef.current.length === 0) {
+      batchQueueRef.current = buildBatchOrder(sequences, BATCH_SIZE);
+    }
     hasRecordedAttempt.current = false;
-    const seq = pickRandom(sequences, current);
+    const seq = batchQueueRef.current.shift()!;
     setCurrent(seq);
     setUserAnswer([]);
     setIsCorrect(null);
@@ -201,10 +244,10 @@ export default function App() {
     setGameState("playing");
     setIsPlaying(true);
     await playCadence();
-    await playSequence(seq!.notes);
+    await playSequence(seq.notes);
     setIsPlaying(false);
     setGameState("answering");
-  }, [sequences, current, progressData, finalizeBatch]);
+  }, [sequences, progressData, finalizeBatch]);
 
   const replay = useCallback(async () => {
     if (!current || isPlaying) return;
@@ -259,7 +302,10 @@ export default function App() {
 
   const continuePractice = useCallback(async () => {
     hasRecordedAttempt.current = false;
-    const seq = pickRandom(sequences, current);
+    if (batchQueueRef.current.length === 0) {
+      batchQueueRef.current = buildBatchOrder(sequences, BATCH_SIZE);
+    }
+    const seq = batchQueueRef.current.shift()!;
     setCurrent(seq);
     setUserAnswer([]);
     setIsCorrect(null);
@@ -267,10 +313,10 @@ export default function App() {
     setGameState("playing");
     setIsPlaying(true);
     await playCadence();
-    await playSequence(seq!.notes);
+    await playSequence(seq.notes);
     setIsPlaying(false);
     setGameState("answering");
-  }, [sequences, current]);
+  }, [sequences]);
 
   const keyHandlerRef = useRef<(e: KeyboardEvent) => void>(undefined);
   useEffect(() => { keyHandlerRef.current = (e: KeyboardEvent) => {
@@ -338,16 +384,18 @@ export default function App() {
     return (
       <div className="container">
         <h1>Gehörsträning</h1>
-        <div className="message-box">
-          <p>Inga tonföljder angivna.</p>
-          <p>Lägg till tonföljder via URL:en, till exempel:</p>
-          <code className="example-url">
-            ?s=CFGc;C,EGc
-          </code>
-          <p className="hint">
-            ABC-notation: C=C4, c=C5, C,=C3, c'=C6. Explicit oktav (C5) fungerar också.
-            Separera tonföljder med semikolon.
-          </p>
+        <div className="library">
+          {LIBRARY.map((item) => {
+            const medal = getLibraryMedal(item.sequences);
+            return (
+              <a key={item.name} className="library-card" href={`?s=${encodeURIComponent(item.sequences)}&name=${encodeURIComponent(item.name)}`}>
+                <span className="library-card-name">
+                  {medal !== "none" && <span className="library-card-medal">{getMedalEmoji(medal)}</span>}
+                  {item.name}
+                </span>
+              </a>
+            );
+          })}
         </div>
       </div>
     );
